@@ -1,0 +1,6 @@
+#!/bin/sh
+# Block commits that would produce a Crown submission the upload panel rejects.
+python3 tools/validate_submission.py || {
+  echo "pre-commit: tools/validate_submission.py failed; fix problem.yaml/layout before committing." >&2
+  exit 1
+}

@@ -13,29 +13,29 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from validate_submission import JUNK_PARTS, STEPS_KEY, validate_folder, validate_zip  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
-REQUIRED = ["problem.yaml", "background.md", "source.md", "solution.py", "second_solution.py"]
-SKIP = {"__pycache__", ".pytest_cache"}
 
 
 def build(task_id):
     task = ROOT / "tasks" / task_id
-    for name in REQUIRED:
-        assert (task / name).is_file(), (task_id, name)
+    errors = validate_folder(task_id)
+    if errors:
+        raise SystemExit("refusing to build %s:\n  - %s" % (task_id, "\n  - ".join(errors)))
     meta = yaml.safe_load((task / "problem.yaml").read_text())
-    assert meta["domain"] in {"physics", "biology", "materials", "math", "chemistry", "earth", "ocean"}
-    n_steps = len(meta["subproblems"])
-    assert [s["index"] for s in meta["subproblems"]] == list(range(1, n_steps + 1))
-    for sub in ("steps", "solution", "tests"):
-        for n in range(1, n_steps + 1):
-            assert (task / sub / f"step_{n}.py").is_file(), (task_id, sub, n)
-    assert (task / "tests" / "general.py").is_file()
+    n_steps = len(meta[STEPS_KEY])
     out = ROOT / "dist" / f"{task_id}.zip"
     out.parent.mkdir(exist_ok=True)
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(task.rglob("*")):
-            if path.is_file() and not (SKIP & set(path.parts)) and path.suffix != ".pyc":
+            if path.is_file() and not (JUNK_PARTS & set(path.parts)) and path.suffix != ".pyc":
                 zf.write(path, Path("tasks") / task_id / path.relative_to(task))
+    errors = validate_zip(out)
+    if errors:
+        out.unlink()
+        raise SystemExit("built ZIP failed validation and was deleted:\n  - " + "\n  - ".join(errors))
     with zipfile.ZipFile(out) as zf:
         print("%s: %d files, %d steps, domain=%s -> %s" % (task_id, len(zf.namelist()), n_steps,
                                                           meta["domain"], out.relative_to(ROOT)))

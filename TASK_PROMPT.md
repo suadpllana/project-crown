@@ -41,7 +41,7 @@ Create exactly this layout. Do not add containers, harness configs or platform f
 
 ```
 tasks/<task_id>/
-  problem.yaml          # main problem + ordered subproblems + contracts + metadata (domain: <token>)
+  problem.yaml          # main problem + `sub_steps` list + contracts + metadata (domain: <token>)
   background.md         # equations, definitions, constants, conventions; no code, no expected values
   source.md             # literature, data provenance, what you designed, ground-truth evidence table
   solution.py           # complete integrated reference solution (all step functions)
@@ -82,13 +82,15 @@ last step, or `solution.py`, must solve the full main problem.
 
 ## problem.yaml MUST CONTAIN
 
-`id, title, domain, language, python_version, dependencies (pinned minimums, numpy only if
-possible), datasets, result_type (exact / approximate / asymptotic)`
+`id` and `problem_id` (both equal to the folder name), `title, domain, language,
+python_version, dependencies (pinned minimums, numpy only if possible), datasets,
+result_type (exact / approximate / asymptotic)`
 
 `main_problem`: description (objective), inputs, outputs, units_and_conventions,
 constants, assumptions_and_valid_ranges, accuracy (numeric tolerances), validation_errors.
 
-`subproblems`: for each step give index, name, function, signature, description
+`sub_steps` (this exact key: the upload panel rejects `subproblems`, `steps` and
+`substeps`): for each step give step_number (sequential from 1), name, function, signature, description
 (the computation, conventions, and the pitfall stated as a requirement), inputs with
 units/shapes/ranges, output with shape/units, raises (the exact exception type and
 conditions), and depends_on.
@@ -205,6 +207,9 @@ Run the whole suite twice to show it is deterministic.
   the validation you ran.
 
 ## DEFINITION OF DONE (all must be true)
+
+- [ ] `python3 tools/validate_submission.py` prints OK, and the ZIP was built with
+      `python3 tools/build_zip.py`, which re-validates the ZIP. Never zip by hand.
 
 - [ ] The layout matches exactly. `domain:` is set. The zip contains `tasks/<task_id>/...`
       and no caches.

@@ -1,4 +1,5 @@
 id: upb_discordia_intercepts
+problem_id: upb_discordia_intercepts
 title: "Zircon U-Pb discordia: upper and lower concordia-intercept ages from Tera-Wasserburg analyses"
 domain: earth
 subdomain: "geochronology / isotope geochemistry"
@@ -54,8 +55,9 @@ main_problem:
     - "Step 5: as Steps 2 and 4; ages absolute 1e-3 Ma."
   validation_errors: "Each function raises ValueError for the invalid inputs listed in its contract."
 
-subproblems:
-  - index: 1
+sub_steps:
+  - step_number: 1
+    index: 1
     name: "Tera-Wasserburg to Wetherill conversion with error propagation"
     function: tera_wasserburg_to_wetherill
     signature: "def tera_wasserburg_to_wetherill(X, sX, Y, sY, rho) -> numpy.ndarray"
@@ -74,7 +76,8 @@ subproblems:
     output: "ndarray of shape (n, 5) with columns [x, sx, y, sy, rho_xy]"
     raises: "ValueError for empty or unequal-length arrays, non-positive ratios or uncertainties, |rho| >= 1, or non-finite values"
     depends_on: []
-  - index: 2
+  - step_number: 2
+    index: 2
     name: "York regression with correlated errors"
     function: york_fit
     signature: "def york_fit(x, sx, y, sy, rho) -> dict"
@@ -97,7 +100,8 @@ subproblems:
     output: "dict with 'intercept' (float), 'slope' (float), 'cov' (2x2 ndarray, order [intercept, slope]), 'mswd' (float), 'n' (int)"
     raises: "ValueError if n < 3, arrays differ in length, any uncertainty <= 0, |rho| >= 1, all x are equal, or input is non-finite"
     depends_on: []
-  - index: 3
+  - step_number: 3
+    index: 3
     name: "Concordia intercepts of a straight line"
     function: concordia_intercepts
     signature: "def concordia_intercepts(intercept, slope) -> numpy.ndarray"
@@ -113,7 +117,8 @@ subproblems:
     output: "1-D ndarray of length 0, 1 or 2 (ages in Ma, ascending)"
     raises: "ValueError if intercept or slope is not finite"
     depends_on: []
-  - index: 4
+  - step_number: 4
+    index: 4
     name: "Intercept-age uncertainties"
     function: intercept_age_sigmas
     signature: "def intercept_age_sigmas(intercept, slope, cov, ages) -> numpy.ndarray"
@@ -132,7 +137,8 @@ subproblems:
     output: "ndarray of shape (k,), Ma"
     raises: "ValueError if cov is not a finite symmetric 2x2 matrix with non-negative diagonal"
     depends_on: [3]
-  - index: 5
+  - step_number: 5
+    index: 5
     name: "Discordia intercept ages from Tera-Wasserburg analyses"
     function: discordia_ages
     signature: "def discordia_ages(X, sX, Y, sY, rho) -> dict"

@@ -46,6 +46,7 @@ helpers. Edit them, then rerun the matching `assemble.py`.
 
 ```bash
 pip install numpy pytest pyyaml
+python tools/validate_submission.py      # platform schema check (sub_steps, domain, files)
 python tools/upb/negative_controls.py   # 20 mutants killed, scaffolds fail, references pass
 python tools/negative_controls.py       # 17 mutants killed, scaffolds fail, references pass
 python tools/build_zip.py
