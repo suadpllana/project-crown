@@ -24,9 +24,14 @@ Project Crown, a benchmark of expert-written scientific coding tasks.
 
 Data available to you: **{{DATA: published constants, tables or real datasets you can cite, or "none / synthetic with seed"}}**
 
-Do not reuse the computational structure of an existing task. Bigeleisen-Mayer
-beta-factors from Hessians are already taken, and so is "frequencies → partition
-functions → thermochemistry". Similarity checks compare against public benchmarks
+Do not reuse the computational structure of an existing task. These are already taken
+in this repository:
+- Bigeleisen-Mayer beta-factors from Hessians, and "frequencies → partition functions →
+  thermochemistry";
+- U-Pb discordia: Tera-Wasserburg → Wetherill conversion, York regression, concordia
+  intercepts and their uncertainties. Treat any "errors-in-both-variables regression →
+  curve intersection → propagated age" pipeline (Rb-Sr, Sm-Nd, Ar-Ar isochrons) as a near
+  duplicate. Similarity checks compare against public benchmarks
 (SciCode and others) and against earlier submissions. Changing only the domain wording,
 variable names or dataset is rejected.
 

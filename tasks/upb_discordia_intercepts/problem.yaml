@@ -1,0 +1,161 @@
+id: upb_discordia_intercepts
+title: "Zircon U-Pb discordia: upper and lower concordia-intercept ages from Tera-Wasserburg analyses"
+domain: earth
+subdomain: "geochronology / isotope geochemistry"
+difficulty_sources:
+  - "Converting Tera-Wasserburg ratios to Wetherill coordinates with full error-covariance propagation (the Wetherill errors are strongly correlated)"
+  - "York (2004) regression with point-specific, correlated errors in both coordinates and standard errors evaluated at the adjusted points"
+  - "Finding every intersection of a straight line with the curved concordia, including negative and near-zero lower intercepts, inside a fixed age window"
+  - "Propagating the correlated slope-intercept uncertainty into intercept ages by implicit differentiation"
+  - "Applying the over-dispersion (MSWD) convention correctly in the integrated result"
+language: python
+python_version: ">=3.9"
+dependencies:
+  - "numpy>=1.22"
+datasets: "none (published Pearson-York benchmark values are embedded in the tests; U-Pb inputs are generated deterministically)"
+result_type: "approximate (first-order/linearised error propagation); line parameters and ages are exact solutions of the stated equations"
+
+main_problem:
+  description: |
+    Zircon U-Pb analyses that lost radiogenic Pb in a later event plot on a straight
+    line (a "discordia") in the Wetherill concordia diagram (x = 207Pb/235U,
+    y = 206Pb/238U). The line intersects the concordia curve at two ages: the upper
+    intercept dates crystallisation and the lower intercept dates the Pb-loss event.
+    Laser-ablation (LA-ICP-MS) and ion-probe laboratories usually report their data in
+    Tera-Wasserburg form (X = 238U/206Pb, Y = 207Pb/206Pb, with 1-sigma uncertainties and
+    an error correlation).
+
+    Write a pipeline that takes n >= 3 Tera-Wasserburg analyses and returns the
+    York-regression discordia in Wetherill coordinates, its MSWD, the two concordia-
+    intercept ages and their 1-sigma uncertainties. The work is divided into five
+    dependent steps; the Step-5 function `discordia_ages` is the main entry point.
+  inputs:
+    - "X, sX: 238U/206Pb and its 1-sigma absolute uncertainty, arrays of shape (n,), all > 0."
+    - "Y, sY: 207Pb/206Pb and its 1-sigma absolute uncertainty, arrays of shape (n,), all > 0."
+    - "rho: correlation coefficient of the X and Y errors, shape (n,), |rho| < 1."
+  outputs:
+    - "dict with keys intercept, slope (floats, Wetherill line y = intercept + slope*x), cov (2x2 York covariance of (intercept, slope), unscaled), mswd (float), n (int), ages (array (2,), [lower, upper] in Ma, ascending), sigmas (array (2,), 1-sigma in Ma)."
+  units_and_conventions:
+    - "Ages in Ma (1 Ma = 1e6 years). Ratios are dimensionless. All uncertainties are 1-sigma absolute."
+    - "Decay constants (Jaffey et al. 1971): lambda_238 = 1.55125e-10 per year, lambda_235 = 9.8485e-10 per year. Present-day 238U/235U = 137.818 (Hiess et al. 2012). These exact values are required."
+    - "Wetherill concordia: x(t) = exp(lambda_235 t) - 1, y(t) = exp(lambda_238 t) - 1."
+    - "Covariance matrices of line parameters are ordered [intercept, slope]."
+    - "Decay-constant uncertainties are NOT propagated."
+    - "MSWD = sum of weighted squared residuals / (n - 2). If MSWD > 1 the age uncertainties are multiplied by sqrt(MSWD); if MSWD <= 1 they are left unchanged. The returned cov is always the unscaled York covariance."
+  assumptions_and_valid_ranges:
+    - "Intercepts are sought in the window -1000 Ma <= t <= 5000 Ma (negative lower intercepts occur in practice for recent Pb loss plus scatter and must be reported)."
+    - "Error propagation is first order (linearised) throughout."
+    - "Typical inputs: 1-2 % relative uncertainties, |rho| < 0.9, n between 5 and 30."
+  accuracy:
+    - "Step 1: relative 1e-9 on every output column."
+    - "Step 2: intercept and slope relative 1e-7 (absolute floor 1e-10); cov relative 1e-5; MSWD relative 1e-6."
+    - "Step 3: ages absolute 1e-4 Ma."
+    - "Step 4: relative 1e-4 (absolute floor 1e-6 Ma)."
+    - "Step 5: as Steps 2 and 4; ages absolute 1e-3 Ma."
+  validation_errors: "Each function raises ValueError for the invalid inputs listed in its contract."
+
+subproblems:
+  - index: 1
+    name: "Tera-Wasserburg to Wetherill conversion with error propagation"
+    function: tera_wasserburg_to_wetherill
+    signature: "def tera_wasserburg_to_wetherill(X, sX, Y, sY, rho) -> numpy.ndarray"
+    description: |
+      Compute x = 207Pb/235U = 137.818 * Y / X and y = 206Pb/238U = 1 / X for each
+      analysis, and propagate the full 2x2 covariance of (X, Y), including the
+      correlation term, to first order to obtain sx, sy and the correlation rho_xy of the
+      Wetherill ratios. Any first-order-equivalent derivation (Cartesian Jacobian or
+      relative/logarithmic errors) is acceptable.
+    inputs:
+      X: "(n,) 238U/206Pb, > 0"
+      sX: "(n,) 1-sigma absolute, > 0"
+      Y: "(n,) 207Pb/206Pb, > 0"
+      sY: "(n,) 1-sigma absolute, > 0"
+      rho: "(n,) |rho| < 1"
+    output: "ndarray of shape (n, 5) with columns [x, sx, y, sy, rho_xy]"
+    raises: "ValueError for empty or unequal-length arrays, non-positive ratios or uncertainties, |rho| >= 1, or non-finite values"
+    depends_on: []
+  - index: 2
+    name: "York regression with correlated errors"
+    function: york_fit
+    signature: "def york_fit(x, sx, y, sy, rho) -> dict"
+    description: |
+      Fit y = a + b x by the York et al. (2004) least-squares / maximum-likelihood
+      solution for point-specific, correlated errors in both coordinates. The slope
+      satisfies York's implicit equation (equivalently, it minimises
+      S(b) = min_a sum_i W_i(b) (y_i - a - b x_i)^2, W_i = 1/(sy_i^2 + b^2 sx_i^2 - 2 b rho_i sx_i sy_i));
+      the intercept is a = Ybar - b Xbar with W-weighted means. Standard errors follow
+      York et al. (2004), evaluated at the least-squares-adjusted points (not the observed
+      points): var_b = 1 / sum W_i (x_adj_i - x_adj_bar)^2, var_a = 1/sum W_i + x_adj_bar^2 var_b,
+      cov(a, b) = -x_adj_bar var_b, with x_adj_bar the W-weighted mean of the adjusted
+      abscissae. MSWD = S / (n - 2).
+    inputs:
+      x: "(n,)"
+      sx: "(n,) > 0"
+      y: "(n,)"
+      sy: "(n,) > 0"
+      rho: "(n,) |rho| < 1"
+    output: "dict with 'intercept' (float), 'slope' (float), 'cov' (2x2 ndarray, order [intercept, slope]), 'mswd' (float), 'n' (int)"
+    raises: "ValueError if n < 3, arrays differ in length, any uncertainty <= 0, |rho| >= 1, all x are equal, or input is non-finite"
+    depends_on: []
+  - index: 3
+    name: "Concordia intercepts of a straight line"
+    function: concordia_intercepts
+    signature: "def concordia_intercepts(intercept, slope) -> numpy.ndarray"
+    description: |
+      Return all ages t (Ma) in [-1000, 5000] Ma at which the Wetherill concordia point
+      (exp(lambda_235 t) - 1, exp(lambda_238 t) - 1) lies on the line y = intercept + slope x,
+      sorted ascending. Because lambda_238 < lambda_235 the concordia is concave, so a line
+      meets it at most twice; a line of non-positive slope meets it at most once. Every
+      intersection inside the window must be returned, none outside it.
+    inputs:
+      intercept: "float"
+      slope: "float"
+    output: "1-D ndarray of length 0, 1 or 2 (ages in Ma, ascending)"
+    raises: "ValueError if intercept or slope is not finite"
+    depends_on: []
+  - index: 4
+    name: "Intercept-age uncertainties"
+    function: intercept_age_sigmas
+    signature: "def intercept_age_sigmas(intercept, slope, cov, ages) -> numpy.ndarray"
+    description: |
+      For each intercept age t of the line, propagate the covariance of (intercept, slope)
+      to a 1-sigma age uncertainty to first order. With
+      f(t; a, b) = exp(lambda_238 t) - 1 - a - b (exp(lambda_235 t) - 1) = 0, the implicit
+      function theorem gives dt/da and dt/db; sigma_t^2 = g^T cov g with g = (dt/da, dt/db).
+      The off-diagonal covariance term must be included. Report sigma in Ma. No MSWD scaling
+      and no decay-constant uncertainty in this step.
+    inputs:
+      intercept: "float"
+      slope: "float"
+      cov: "(2, 2) symmetric, non-negative diagonal, order [intercept, slope]"
+      ages: "(k,) intercept ages of this line, Ma"
+    output: "ndarray of shape (k,), Ma"
+    raises: "ValueError if cov is not a finite symmetric 2x2 matrix with non-negative diagonal"
+    depends_on: [3]
+  - index: 5
+    name: "Discordia intercept ages from Tera-Wasserburg analyses"
+    function: discordia_ages
+    signature: "def discordia_ages(X, sX, Y, sY, rho) -> dict"
+    description: |
+      Convert the analyses to Wetherill coordinates (Step 1), fit the York line (Step 2),
+      find its concordia intercepts (Step 3) and their uncertainties (Step 4). Multiply the
+      age uncertainties by sqrt(MSWD) when MSWD > 1 (never reduce them when MSWD <= 1).
+      Raise ValueError unless exactly two intercepts lie inside the age window.
+    inputs:
+      X: "(n,)"
+      sX: "(n,)"
+      Y: "(n,)"
+      sY: "(n,)"
+      rho: "(n,)"
+    output: "dict with keys intercept, slope, cov, mswd, n, ages ((2,) ascending, Ma), sigmas ((2,), Ma)"
+    raises: "ValueError for invalid input (Steps 1-2) or when the line does not cross concordia exactly twice within -1000 ... 5000 Ma"
+    depends_on: [1, 2, 3, 4]
+
+reference_solutions:
+  per_step: "solution/step_1.py ... solution/step_5.py (self-contained)"
+  complete: "solution.py"
+  alternative: "second_solution.py (logarithmic error propagation, direct maximum-likelihood minimisation with geometric adjusted points, root finding in s = exp(lambda_238 t), centroid re-parametrisation of the line covariance)"
+tests:
+  per_step: "tests/step_1.py ... tests/step_5.py"
+  integration: "tests/general.py"
+  runner: "pytest <file> or python <file>; implementation taken from globals, from $CROWN_IMPL, or from solution/step_N.py (solution.py for general.py)"
