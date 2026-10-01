@@ -24,8 +24,11 @@ STEPS_KEY = "sub_steps"
 # Keys the platform does NOT accept for the step list (platform error 2026-10, see CLAUDE.md).
 FORBIDDEN_STEP_KEYS = {"subproblems", "subproblem", "steps", "substeps", "sub-steps", "subSteps"}
 REQUIRED_TOP = ["problem_id", "title", "domain", "main_problem", STEPS_KEY]
-REQUIRED_STEP = ["step_number", "name", "function", "signature", "description",
-                 "inputs", "output", "depends_on"]
+REQUIRED_STEP = ["step_number", "solution", "tests", "name", "function", "signature",
+                 "description", "inputs", "output", "depends_on"]
+# Per-step file-path keys the platform reads (platform error 2026-10 #2, see CLAUDE.md):
+# each sub_step must name its reference solution and its tests file explicitly.
+STEP_PATH_KEYS = {"solution": "solution/step_{n}.py", "tests": "tests/step_{n}.py"}
 REQUIRED_FILES = ["problem.yaml", "background.md", "source.md", "solution.py", "tests/general.py"]
 JUNK_PARTS = {"__pycache__", ".pytest_cache", ".ipynb_checkpoints", ".DS_Store"}
 
@@ -88,6 +91,13 @@ def validate_files(task_id, files):
         if step.get("step_number") != i:
             errors.append("sub_steps[%d].step_number must be %d (sequential from 1), got %r"
                           % (i - 1, i, step.get("step_number")))
+        for key, pattern in STEP_PATH_KEYS.items():
+            want = pattern.format(n=i)
+            got = step.get(key)
+            if key in step and got != want:
+                errors.append("sub_steps[%d].%s must be the path %r, got %r" % (i - 1, key, want, got))
+            if isinstance(got, str) and got not in files:
+                errors.append("sub_steps[%d].%s points to a missing file %r" % (i - 1, key, got))
         if "index" in step and step["index"] != step.get("step_number"):
             errors.append("sub_steps[%d]: index and step_number disagree" % (i - 1))
         for dep in step.get("depends_on", []) or []:

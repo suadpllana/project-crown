@@ -58,6 +58,8 @@ main_problem:
 sub_steps:
   - step_number: 1
     index: 1
+    solution: solution/step_1.py
+    tests: tests/step_1.py
     name: "Tera-Wasserburg to Wetherill conversion with error propagation"
     function: tera_wasserburg_to_wetherill
     signature: "def tera_wasserburg_to_wetherill(X, sX, Y, sY, rho) -> numpy.ndarray"
@@ -78,6 +80,8 @@ sub_steps:
     depends_on: []
   - step_number: 2
     index: 2
+    solution: solution/step_2.py
+    tests: tests/step_2.py
     name: "York regression with correlated errors"
     function: york_fit
     signature: "def york_fit(x, sx, y, sy, rho) -> dict"
@@ -102,6 +106,8 @@ sub_steps:
     depends_on: []
   - step_number: 3
     index: 3
+    solution: solution/step_3.py
+    tests: tests/step_3.py
     name: "Concordia intercepts of a straight line"
     function: concordia_intercepts
     signature: "def concordia_intercepts(intercept, slope) -> numpy.ndarray"
@@ -119,6 +125,8 @@ sub_steps:
     depends_on: []
   - step_number: 4
     index: 4
+    solution: solution/step_4.py
+    tests: tests/step_4.py
     name: "Intercept-age uncertainties"
     function: intercept_age_sigmas
     signature: "def intercept_age_sigmas(intercept, slope, cov, ages) -> numpy.ndarray"
@@ -139,6 +147,8 @@ sub_steps:
     depends_on: [3]
   - step_number: 5
     index: 5
+    solution: solution/step_5.py
+    tests: tests/step_5.py
     name: "Discordia intercept ages from Tera-Wasserburg analyses"
     function: discordia_ages
     signature: "def discordia_ages(X, sX, Y, sY, rho) -> dict"

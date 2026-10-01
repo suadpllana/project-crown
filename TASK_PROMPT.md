@@ -90,7 +90,8 @@ result_type (exact / approximate / asymptotic)`
 constants, assumptions_and_valid_ranges, accuracy (numeric tolerances), validation_errors.
 
 `sub_steps` (this exact key: the upload panel rejects `subproblems`, `steps` and
-`substeps`): for each step give step_number (sequential from 1), name, function, signature, description
+`substeps`): for each step give step_number (sequential from 1), solution (the path
+`solution/step_N.py`), tests (the path `tests/step_N.py`), name, function, signature, description
 (the computation, conventions, and the pitfall stated as a requirement), inputs with
 units/shapes/ranges, output with shape/units, raises (the exact exception type and
 conditions), and depends_on.

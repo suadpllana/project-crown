@@ -61,6 +61,8 @@ main_problem:
 sub_steps:
   - step_number: 1
     index: 1
+    solution: solution/step_1.py
+    tests: tests/step_1.py
     name: "Projected harmonic vibrational wavenumbers"
     function: vibrational_wavenumbers
     signature: "def vibrational_wavenumbers(coords, masses, hessian) -> numpy.ndarray"
@@ -87,6 +89,8 @@ sub_steps:
     depends_on: []
   - step_number: 2
     index: 2
+    solution: solution/step_2.py
+    tests: tests/step_2.py
     name: "Bigeleisen-Mayer reduced partition function ratio"
     function: log_reduced_partition_function_ratio
     signature: "def log_reduced_partition_function_ratio(nu_light, nu_heavy, T)"
@@ -107,6 +111,8 @@ sub_steps:
     depends_on: []
   - step_number: 3
     index: 3
+    solution: solution/step_3.py
+    tests: tests/step_3.py
     name: "Per-atom beta-factor of an isotopologue pair"
     function: log_beta
     signature: "def log_beta(coords, masses_light, masses_heavy, hessian, T)"
@@ -129,6 +135,8 @@ sub_steps:
     depends_on: [1, 2]
   - step_number: 4
     index: 4
+    solution: solution/step_4.py
+    tests: tests/step_4.py
     name: "High-temperature coefficient of ln(beta)"
     function: high_temperature_coefficient
     signature: "def high_temperature_coefficient(coords, masses_light, masses_heavy, hessian) -> float"
@@ -148,6 +156,8 @@ sub_steps:
     depends_on: [1, 3]
   - step_number: 5
     index: 5
+    solution: solution/step_5.py
+    tests: tests/step_5.py
     name: "Fractionation between two species, 1/T fit and high-temperature limit"
     function: isotope_fractionation
     signature: "def isotope_fractionation(species_a, species_b, temperatures) -> dict"

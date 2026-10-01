@@ -29,6 +29,8 @@ main_problem: {description, inputs, outputs, units_and_conventions, assumptions_
 sub_steps:                    # <-- REQUIRED KEY NAME. Not "subproblems", "steps" or "substeps".
   - step_number: 1            # sequential from 1, matching steps/ solution/ tests/ step_N.py
     index: 1                  # optional; if present must equal step_number
+    solution: solution/step_1.py   # REQUIRED: path of this step's reference solution
+    tests: tests/step_1.py         # REQUIRED: path of this step's tests file
     name: "..."
     function: <python_name>   # must be defined in steps/step_N.py, solution/step_N.py, solution.py
     signature: "def <python_name>(...)"
@@ -57,7 +59,12 @@ check that now prevents it. Add a validator rule before (or together with) the f
 | Date | Task | Platform message | Fix | Guard |
 |---|---|---|---|---|
 | 2026-10 | upb_discordia_intercepts (and, latently, bigeleisen_mayer_beta) | `problem.yaml has no "sub_steps" list, which holds the task's steps. It has "subproblems" instead; rename that key to "sub_steps".` The panel then showed "0 steps · no domain". | Renamed `subproblems` → `sub_steps` in every task; added `step_number` per step and top-level `problem_id`. | `validate_submission.py` rejects `subproblems`/`steps`/`substeps` and requires `sub_steps` with sequential `step_number`; `build_zip.py` refuses to build otherwise. |
+| 2026-10 | upb_discordia_intercepts (and, latently, bigeleisen_mayer_beta) | `Step 1 of "sub_steps" has no "solution" (the path of its reference solution, like solution/step_1.py) ... has no "tests" (the path of its tests file, like tests/step_1.py)`. Repeated for every step. | Added `solution: solution/step_N.py` and `tests: tests/step_N.py` to every sub_step. | `validate_submission.py` requires both keys, checks they equal `solution/step_N.py` / `tests/step_N.py`, and that the files exist. |
 | 2026-10 | (info) | `tasks/_id_mapping.json is absent; falling back to delivered ids for task identity.` | Informational; identity comes from `problem_id`. | `problem_id` must equal the folder name. |
+
+**Lesson:** the panel reports schema problems a few at a time. The authoritative layout is
+the panel's **Download template**. When it is available, copy its exact keys into the
+schema above and into the validator at once, rather than fixing one rejection per upload.
 
 ## Task-quality rules (from the Crown expert guide)
 
