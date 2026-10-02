@@ -15,12 +15,18 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from validate_submission import JUNK_PARTS, STEPS_KEY, validate_folder, validate_zip  # noqa: E402
+from sync_problem_yaml import sync  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def build(task_id):
     task = ROOT / "tasks" / task_id
+    # Regenerate derived problem.yaml fields (function_header, ...) before validating.
+    path, cur, want = sync(task)
+    if cur != want:
+        path.write_text(want)
+        print("%s: synced derived fields in problem.yaml" % task_id)
     errors = validate_folder(task_id)
     if errors:
         raise SystemExit("refusing to build %s:\n  - %s" % (task_id, "\n  - ".join(errors)))

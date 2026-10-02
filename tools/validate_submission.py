@@ -18,14 +18,17 @@ from pathlib import Path
 
 import yaml
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 ROOT = Path(__file__).resolve().parents[1]
 DOMAINS = {"physics", "biology", "materials", "math", "chemistry", "earth", "ocean"}
 STEPS_KEY = "sub_steps"
 # Keys the platform does NOT accept for the step list (platform error 2026-10, see CLAUDE.md).
 FORBIDDEN_STEP_KEYS = {"subproblems", "subproblem", "steps", "substeps", "sub-steps", "subSteps"}
 REQUIRED_TOP = ["problem_id", "title", "domain", "main_problem", STEPS_KEY]
-REQUIRED_STEP = ["step_number", "solution", "tests", "name", "function", "signature",
-                 "description", "inputs", "output", "depends_on"]
+REQUIRED_STEP = ["step_number", "solution", "tests", "function_header", "name", "function",
+                 "signature", "description", "inputs", "output", "depends_on"]
+# function_header (platform error 2026-10 #3): SciCode-style "def line + docstring" of the step's
+# function, no body. Generated from steps/step_N.py by tools/sync_problem_yaml.py.
 # Per-step file-path keys the platform reads (platform error 2026-10 #2, see CLAUDE.md):
 # each sub_step must name its reference solution and its tests file explicitly.
 STEP_PATH_KEYS = {"solution": "solution/step_{n}.py", "tests": "tests/step_{n}.py"}
@@ -98,6 +101,28 @@ def validate_files(task_id, files):
                 errors.append("sub_steps[%d].%s must be the path %r, got %r" % (i - 1, key, want, got))
             if isinstance(got, str) and got not in files:
                 errors.append("sub_steps[%d].%s points to a missing file %r" % (i - 1, key, got))
+        fn = step.get("function")
+        header = step.get("function_header")
+        if header is not None:
+            if not isinstance(header, str) or not header.lstrip().startswith("def %s(" % fn):
+                errors.append("sub_steps[%d].function_header must start with 'def %s('" % (i - 1, fn))
+            else:
+                try:
+                    hdr_tree = ast.parse(header)
+                    hdr_fn = hdr_tree.body[0]
+                    if not (isinstance(hdr_fn, ast.FunctionDef) and ast.get_docstring(hdr_fn)):
+                        errors.append("sub_steps[%d].function_header needs a docstring" % (i - 1))
+                except SyntaxError as exc:
+                    errors.append("sub_steps[%d].function_header is not valid Python: %s" % (i - 1, exc))
+                scaffold = files.get("steps/step_%d.py" % i)
+                if scaffold is not None and fn:
+                    try:
+                        from sync_problem_yaml import function_header as _hdr
+                        if _hdr(scaffold, fn) != header:
+                            errors.append("sub_steps[%d].function_header differs from steps/step_%d.py "
+                                          "(run tools/sync_problem_yaml.py)" % (i - 1, i))
+                    except (SystemExit, SyntaxError) as exc:
+                        errors.append("steps/step_%d.py: cannot extract header: %s" % (i, exc))
         if "index" in step and step["index"] != step.get("step_number"):
             errors.append("sub_steps[%d]: index and step_number disagree" % (i - 1))
         for dep in step.get("depends_on", []) or []:
@@ -144,7 +169,12 @@ def validate_folder(task_id):
             if JUNK_PARTS & set(p.parts) or p.suffix == ".pyc":
                 continue  # build_zip skips these; not an error in the working tree
             files[rel] = p.read_text(errors="replace")
-    return validate_files(task_id, files)
+    errors = validate_files(task_id, files)
+    from sync_problem_yaml import sync
+    path, cur, want = sync(task)
+    if cur != want:
+        errors.append("problem.yaml derived fields are stale (run python3 tools/sync_problem_yaml.py)")
+    return errors
 
 
 def validate_zip(path):

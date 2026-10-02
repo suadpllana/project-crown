@@ -36,6 +36,8 @@ tasks/<task_id>/               submission content (problem.yaml, background.md, 
 tools/src, tools/assemble.py, tools/negative_controls.py          (bigeleisen_mayer_beta)
 tools/upb/src, tools/upb/assemble.py, tools/upb/negative_controls.py (upb_discordia_intercepts)
 tools/build_zip.py             builds dist/<task_id>.zip for every task (or the ones named)
+tools/sync_problem_yaml.py     fills derived problem.yaml fields (function_header, ...)
+tools/validate_submission.py   platform schema validator (also run by build_zip and the git hook)
 TASK_PROMPT.md                 reusable prompt for authoring further Crown tasks
 ```
 
@@ -46,6 +48,7 @@ helpers. Edit them, then rerun the matching `assemble.py`.
 
 ```bash
 pip install numpy pytest pyyaml
+python tools/sync_problem_yaml.py        # regenerate function_header etc. from the scaffolds
 python tools/validate_submission.py      # platform schema check (sub_steps, domain, files)
 python tools/upb/negative_controls.py   # 20 mutants killed, scaffolds fail, references pass
 python tools/negative_controls.py       # 17 mutants killed, scaffolds fail, references pass

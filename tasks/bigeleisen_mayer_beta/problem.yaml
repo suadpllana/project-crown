@@ -1,21 +1,44 @@
 id: bigeleisen_mayer_beta
 problem_id: bigeleisen_mayer_beta
-title: "Equilibrium isotope fractionation factors from Cartesian Hessians (Bigeleisen-Mayer beta-factors)"
+title: Equilibrium isotope fractionation factors from Cartesian Hessians (Bigeleisen-Mayer beta-factors)
+problem_name: Equilibrium isotope fractionation factors from Cartesian Hessians (Bigeleisen-Mayer beta-factors)
 domain: chemistry
-subdomain: "isotope geochemistry / computational vibrational spectroscopy"
+subdomain: isotope geochemistry / computational vibrational spectroscopy
 difficulty_sources:
-  - "Eckart projection of translations and rotations (including linear molecules) before diagonalisation"
-  - "Re-diagonalising the shared Born-Oppenheimer Hessian with each isotopologue's own masses"
-  - "Numerically stable evaluation of the reduced partition function ratio from 1 K to 1e6 K"
-  - "Per-atom normalisation and the absence of symmetry numbers in the beta-factor convention"
-  - "Integrating the steps into fractionation factors, their 1/T fit and the analytic high-temperature limit"
+- Eckart projection of translations and rotations (including linear molecules) before diagonalisation
+- Re-diagonalising the shared Born-Oppenheimer Hessian with each isotopologue's own masses
+- Numerically stable evaluation of the reduced partition function ratio from 1 K to 1e6 K
+- Per-atom normalisation and the absence of symmetry numbers in the beta-factor convention
+- Integrating the steps into fractionation factors, their 1/T fit and the analytic high-temperature limit
 language: python
-python_version: ">=3.9"
+python_version: '>=3.9'
 dependencies:
-  - "numpy>=1.22"
+- numpy>=1.22
+required_dependencies: |
+  import numpy as np
 datasets: none
-result_type: "approximate (harmonic oscillator / rigid rotor model); every quantity is exactly defined within that model"
+result_type: approximate (harmonic oscillator / rigid rotor model); every quantity is exactly defined
+  within that model
+problem_description_main: |
+  Equilibrium stable-isotope fractionation between two molecules (for example
+  18O/16O between CO2 gas and water vapour, or D/H between water vapour and H2)
+  is computed in isotope geochemistry from harmonic vibrational frequencies through
+  the Bigeleisen-Mayer reduced partition function ratio ("beta-factor"). In a real
+  workflow the frequencies are not given: a quantum-chemistry code provides the
+  equilibrium geometry and the Cartesian Hessian of ONE isotopologue, and the
+  frequencies of every isotopologue must be obtained by mass-weighting that same
+  Hessian with the appropriate isotope masses, removing overall translation and
+  rotation, and diagonalising.
 
+  Write a pipeline that, for two species A and B that each carry the same isotope
+  substitution (same light and heavy isotope), returns 1000 ln(beta_A),
+  1000 ln(beta_B) and 1000 ln(alpha_{A-B}) = 1000 [ln(beta_A) - ln(beta_B)] on a grid
+  of temperatures, the unweighted least-squares coefficients (A, B, C) of
+  1000 ln(alpha) = A (10^3/T)^2 + B (10^3/T) + C, and the analytic high-temperature
+  coefficient of 1000 ln(alpha) expressed in the same units as A.
+
+  The problem is divided into five dependent steps (see `sub_steps`). The final
+  step function `isotope_fractionation` is the main-problem entry point.
 main_problem:
   description: |
     Equilibrium stable-isotope fractionation between two molecules (for example
@@ -38,154 +61,346 @@ main_problem:
     The problem is divided into five dependent steps (see `sub_steps`). The final
     step function `isotope_fractionation` is the main-problem entry point.
   inputs:
-    - "Per species: coords (N,3) in Angstrom; masses_light (N,) and masses_heavy (N,) in amu; hessian (3N,3N) in Hartree/bohr^2 (Cartesian, ordered x1,y1,z1,x2,...)."
-    - "temperatures: 1-D array in kelvin with at least three distinct positive values."
+  - 'Per species: coords (N,3) in Angstrom; masses_light (N,) and masses_heavy (N,) in amu; hessian (3N,3N)
+    in Hartree/bohr^2 (Cartesian, ordered x1,y1,z1,x2,...).'
+  - 'temperatures: 1-D array in kelvin with at least three distinct positive values.'
   outputs:
-    - "dict with keys thousand_ln_beta_a, thousand_ln_beta_b, thousand_ln_alpha (arrays with the shape of temperatures), fit (array [A, B, C]) and a_high_T (float)."
+  - dict with keys thousand_ln_beta_a, thousand_ln_beta_b, thousand_ln_alpha (arrays with the shape of
+    temperatures), fit (array [A, B, C]) and a_high_T (float).
   units_and_conventions:
-    - "Lengths in Angstrom, masses in unified atomic mass units, Hessian in Hartree/bohr^2, wavenumbers in cm^-1, temperatures in K."
-    - "Constants (CODATA 2018): h = 6.62607015e-34 J s; c = 299792458 m/s; k_B = 1.380649e-23 J/K; 1 amu = 1.66053906660e-27 kg; 1 Hartree = 4.3597447222071e-18 J; 1 bohr = 5.29177210903e-11 m. Equivalent CODATA 2014/2022 values are acceptable (differences < 1e-8 relative)."
-    - "beta and f are defined heavy-over-light; ln denotes the natural logarithm."
-    - "Symmetry numbers are NOT included in f or beta (they cancel in exchange equilibria and are a classical quantity)."
-    - "Harmonic-oscillator / rigid-rotor / ideal-gas model; no anharmonic, centrifugal or Born-Oppenheimer-breakdown corrections."
+  - Lengths in Angstrom, masses in unified atomic mass units, Hessian in Hartree/bohr^2, wavenumbers in
+    cm^-1, temperatures in K.
+  - 'Constants (CODATA 2018): h = 6.62607015e-34 J s; c = 299792458 m/s; k_B = 1.380649e-23 J/K; 1 amu
+    = 1.66053906660e-27 kg; 1 Hartree = 4.3597447222071e-18 J; 1 bohr = 5.29177210903e-11 m. Equivalent
+    CODATA 2014/2022 values are acceptable (differences < 1e-8 relative).'
+  - beta and f are defined heavy-over-light; ln denotes the natural logarithm.
+  - Symmetry numbers are NOT included in f or beta (they cancel in exchange equilibria and are a classical
+    quantity).
+  - Harmonic-oscillator / rigid-rotor / ideal-gas model; no anharmonic, centrifugal or Born-Oppenheimer-breakdown
+    corrections.
   assumptions_and_valid_ranges:
-    - "Geometries are stationary points; the Hessian is shared by all isotopologues of a molecule (Born-Oppenheimer approximation)."
-    - "A molecule is linear when its smallest principal moment of inertia about the centre of mass is below 1e-6 times its largest; test molecules are either exactly linear or clearly non-linear."
-    - "Temperatures 1 K <= T <= 1e6 K. Wavenumbers used in Step 2 lie between 10 and 5000 cm^-1."
+  - Geometries are stationary points; the Hessian is shared by all isotopologues of a molecule (Born-Oppenheimer
+    approximation).
+  - A molecule is linear when its smallest principal moment of inertia about the centre of mass is below
+    1e-6 times its largest; test molecules are either exactly linear or clearly non-linear.
+  - Temperatures 1 K <= T <= 1e6 K. Wavenumbers used in Step 2 lie between 10 and 5000 cm^-1.
   accuracy:
-    - "Wavenumbers: |error| <= 1e-3 cm^-1 + 1e-6 * |nu|."
-    - "ln f, ln beta, K and 1000 ln alpha: relative error <= 1e-6 (plus an absolute floor of 1e-10 for ln beta, 1e-6 for 1000 ln alpha)."
-    - "Fit coefficients: relative error <= 1e-5 (absolute floor 1e-5)."
-  validation_errors: "Every function raises ValueError for the invalid inputs listed in its contract."
-
+  - 'Wavenumbers: |error| <= 1e-3 cm^-1 + 1e-6 * |nu|.'
+  - 'ln f, ln beta, K and 1000 ln alpha: relative error <= 1e-6 (plus an absolute floor of 1e-10 for ln
+    beta, 1e-6 for 1000 ln alpha).'
+  - 'Fit coefficients: relative error <= 1e-5 (absolute floor 1e-5).'
+  validation_errors: Every function raises ValueError for the invalid inputs listed in its contract.
 sub_steps:
-  - step_number: 1
-    index: 1
-    solution: solution/step_1.py
-    tests: tests/step_1.py
-    name: "Projected harmonic vibrational wavenumbers"
-    function: vibrational_wavenumbers
-    signature: "def vibrational_wavenumbers(coords, masses, hessian) -> numpy.ndarray"
-    description: |
-      Mass-weight the Cartesian Hessian (H_mw[i,j] = H[i,j] / sqrt(m_i m_j), each atom's
-      mass applied to its x, y and z rows/columns), build the 6 (non-linear) or 5
-      (linear) mass-weighted vectors describing overall translation and infinitesimal
-      rotation, and return the eigenvalues of H_mw restricted to the orthogonal
-      complement of their span (the vibrational subspace), converted to wavenumbers.
-      The projection is required: the Hessian may contain numerical noise that couples
-      the vibrational subspace to translations/rotations (as produced by finite
-      differences). Such noise must be removed by the projection; discarding the 5/6
-      eigenvalues of smallest magnitude of the unprojected matrix is NOT acceptable,
-      because the true spectrum may contain modes softer than the noise.
-      Conversion: for an eigenvalue lambda (Hartree/(bohr^2 amu)),
-      omega = sqrt(|lambda| * E_h / (a_0^2 * amu)) in rad/s and nu = omega / (2 pi c),
-      expressed in cm^-1; a negative lambda gives nu = -|nu|.
-    inputs:
-      coords: "(N,3) float, Angstrom, any origin and orientation, N >= 2"
-      masses: "(N,) float, amu, > 0"
-      hessian: "(3N,3N) float, Hartree/bohr^2"
-    output: "1-D float array of length 3N-6 (non-linear) or 3N-5 (linear, including every diatomic), sorted ascending, cm^-1; imaginary modes negative"
-    raises: "ValueError if coords is not (N,3), N < 2, masses is not (N,), hessian is not (3N,3N), any mass <= 0, or any input is non-finite"
-    depends_on: []
-  - step_number: 2
-    index: 2
-    solution: solution/step_2.py
-    tests: tests/step_2.py
-    name: "Bigeleisen-Mayer reduced partition function ratio"
-    function: log_reduced_partition_function_ratio
-    signature: "def log_reduced_partition_function_ratio(nu_light, nu_heavy, T)"
-    description: |
-      With u_i = h c nu_i / (k_B T) (nu in cm^-1, c in cm/s) for the light isotopologue
-      and u*_i for the heavy one, return
-        ln f = sum_i [ ln(u*_i / u_i) - (u*_i - u_i)/2 - ln(1 - exp(-u*_i)) + ln(1 - exp(-u_i)) ].
-      The result is invariant to the order of the modes in each array. It must be finite
-      and accurate over 1 K <= T <= 1e6 K: at low temperature exp(-u/2) underflows in
-      double precision, so the expression must be evaluated in logarithmic form; at high
-      temperature it approaches sum_i (u_i^2 - u*_i^2)/24.
-    inputs:
-      nu_light: "(M,) float, cm^-1, > 0, M >= 1"
-      nu_heavy: "(M,) float, cm^-1, > 0"
-      T: "scalar or array of any shape, K, > 0"
-    output: "ln f; a scalar (Python float or 0-d) for scalar T, otherwise an array with the shape of T"
-    raises: "ValueError if the arrays are empty, not 1-D, of different length, contain a value <= 0 or a non-finite value, or if any T <= 0 or is non-finite"
-    depends_on: []
-  - step_number: 3
-    index: 3
-    solution: solution/step_3.py
-    tests: tests/step_3.py
-    name: "Per-atom beta-factor of an isotopologue pair"
-    function: log_beta
-    signature: "def log_beta(coords, masses_light, masses_heavy, hessian, T)"
-    description: |
-      The substituted sites are the atoms whose masses differ between masses_light and
-      masses_heavy (relative difference > 1e-12). All substituted sites must carry the
-      same light mass and the same heavy mass (relative tolerance 1e-9), i.e. one
-      element and one isotope pair. Compute the vibrational wavenumbers of BOTH
-      isotopologues from the same Hessian with their own masses (Step 1), ln f from
-      Step 2, and return ln(beta) = ln(f) / n where n is the number of substituted sites
-      (per-atom convention; e.g. for C18O2 versus C16O2, n = 2). No symmetry numbers.
-    inputs:
-      coords: "(N,3) Angstrom"
-      masses_light: "(N,) amu"
-      masses_heavy: "(N,) amu"
-      hessian: "(3N,3N) Hartree/bohr^2"
-      T: "scalar or array, K"
-    output: "ln(beta); scalar for scalar T, otherwise an array with the shape of T"
-    raises: "ValueError if no site is substituted, if substituted sites carry different light or heavy masses, or if the mass vectors are not 1-D of equal length matching coords"
-    depends_on: [1, 2]
-  - step_number: 4
-    index: 4
-    solution: solution/step_4.py
-    tests: tests/step_4.py
-    name: "High-temperature coefficient of ln(beta)"
-    function: high_temperature_coefficient
-    signature: "def high_temperature_coefficient(coords, masses_light, masses_heavy, hessian) -> float"
-    description: |
-      Return K (in K^2) defined by ln(beta) = K / T^2 + O(T^-4) for T -> infinity, for the
-      same isotopologue pair and per-atom convention as Step 3. For this step the Hessian
-      is exactly translationally and rotationally invariant and has no imaginary modes.
-      K can be obtained from the leading term of the Step-2 expansion or, equivalently,
-      from the Bigeleisen-Mayer force-constant form; either route is acceptable.
-    inputs:
-      coords: "(N,3) Angstrom"
-      masses_light: "(N,) amu"
-      masses_heavy: "(N,) amu"
-      hessian: "(3N,3N) Hartree/bohr^2, translation/rotation invariant"
-    output: "float, K^2"
-    raises: "ValueError under the same substitution rules as Step 3"
-    depends_on: [1, 3]
-  - step_number: 5
-    index: 5
-    solution: solution/step_5.py
-    tests: tests/step_5.py
-    name: "Fractionation between two species, 1/T fit and high-temperature limit"
-    function: isotope_fractionation
-    signature: "def isotope_fractionation(species_a, species_b, temperatures) -> dict"
-    description: |
-      Each species is a dict with keys 'coords', 'masses_light', 'masses_heavy' and
-      'hessian' (units as above). Both species must substitute the same isotope pair: the
-      light masses of their substituted sites must agree and the heavy masses must agree
-      (relative tolerance 1e-9); otherwise raise ValueError (e.g. 18O/16O in one species
-      and D/H in the other). Return a dict:
-        thousand_ln_beta_a = 1000 ln(beta_a), thousand_ln_beta_b = 1000 ln(beta_b),
-        thousand_ln_alpha  = 1000 (ln beta_a - ln beta_b)      (arrays, shape (K,));
-        fit = [A, B, C], the ordinary (unweighted) least-squares solution of
-              1000 ln alpha = A x^2 + B x + C with x = 1000 / T over the given temperatures;
-        a_high_T = 1000 (K_a - K_b) / 1e6, the analytic T -> infinity limit expressed in
-              the units of A (i.e. the limit of 1000 ln alpha / x^2).
-    inputs:
-      species_a: "dict (see description)"
-      species_b: "dict (see description)"
-      temperatures: "(K,) float, K > 0, at least three distinct values"
-    output: "dict with keys thousand_ln_beta_a, thousand_ln_beta_b, thousand_ln_alpha, fit, a_high_T"
-    raises: "ValueError if the isotope pairs differ, a key is missing, temperatures are not 1-D, contain a value <= 0, or have fewer than three distinct values"
-    depends_on: [3, 4]
+- step_number: 1
+  index: 1
+  solution: solution/step_1.py
+  tests: tests/step_1.py
+  name: Projected harmonic vibrational wavenumbers
+  function: vibrational_wavenumbers
+  signature: def vibrational_wavenumbers(coords, masses, hessian) -> numpy.ndarray
+  function_header: |
+    def vibrational_wavenumbers(coords, masses, hessian):
+        """Harmonic vibrational wavenumbers of a molecule from its Cartesian Hessian.
 
+        Parameters
+        ----------
+        coords : array_like, shape (N, 3)
+            Equilibrium Cartesian coordinates in Angstrom (any origin/orientation), N >= 2.
+        masses : array_like, shape (N,)
+            Atomic masses in unified atomic mass units (amu); all strictly positive.
+        hessian : array_like, shape (3N, 3N)
+            Cartesian second-derivative matrix of the Born-Oppenheimer energy in
+            Hartree / bohr^2, ordered (x1, y1, z1, x2, y2, z2, ...). It may contain
+            numerical noise that couples vibrations to overall translation/rotation.
+
+        Returns
+        -------
+        numpy.ndarray, shape (3N-6,) for non-linear or (3N-5,) for linear molecules
+            Vibrational wavenumbers in cm^-1, sorted ascending. Imaginary modes are
+            returned as negative numbers (-|nu|).
+
+        Raises
+        ------
+        ValueError
+            On inconsistent shapes, N < 2, non-positive masses or non-finite input.
+        """
+  return_line: '    return np.sort(nu)'
+  description: |
+    Mass-weight the Cartesian Hessian (H_mw[i,j] = H[i,j] / sqrt(m_i m_j), each atom's
+    mass applied to its x, y and z rows/columns), build the 6 (non-linear) or 5
+    (linear) mass-weighted vectors describing overall translation and infinitesimal
+    rotation, and return the eigenvalues of H_mw restricted to the orthogonal
+    complement of their span (the vibrational subspace), converted to wavenumbers.
+    The projection is required: the Hessian may contain numerical noise that couples
+    the vibrational subspace to translations/rotations (as produced by finite
+    differences). Such noise must be removed by the projection; discarding the 5/6
+    eigenvalues of smallest magnitude of the unprojected matrix is NOT acceptable,
+    because the true spectrum may contain modes softer than the noise.
+    Conversion: for an eigenvalue lambda (Hartree/(bohr^2 amu)),
+    omega = sqrt(|lambda| * E_h / (a_0^2 * amu)) in rad/s and nu = omega / (2 pi c),
+    expressed in cm^-1; a negative lambda gives nu = -|nu|.
+  step_description_prompt: |
+    Mass-weight the Cartesian Hessian (H_mw[i,j] = H[i,j] / sqrt(m_i m_j), each atom's
+    mass applied to its x, y and z rows/columns), build the 6 (non-linear) or 5
+    (linear) mass-weighted vectors describing overall translation and infinitesimal
+    rotation, and return the eigenvalues of H_mw restricted to the orthogonal
+    complement of their span (the vibrational subspace), converted to wavenumbers.
+    The projection is required: the Hessian may contain numerical noise that couples
+    the vibrational subspace to translations/rotations (as produced by finite
+    differences). Such noise must be removed by the projection; discarding the 5/6
+    eigenvalues of smallest magnitude of the unprojected matrix is NOT acceptable,
+    because the true spectrum may contain modes softer than the noise.
+    Conversion: for an eigenvalue lambda (Hartree/(bohr^2 amu)),
+    omega = sqrt(|lambda| * E_h / (a_0^2 * amu)) in rad/s and nu = omega / (2 pi c),
+    expressed in cm^-1; a negative lambda gives nu = -|nu|.
+  inputs:
+    coords: (N,3) float, Angstrom, any origin and orientation, N >= 2
+    masses: (N,) float, amu, > 0
+    hessian: (3N,3N) float, Hartree/bohr^2
+  output: 1-D float array of length 3N-6 (non-linear) or 3N-5 (linear, including every diatomic), sorted
+    ascending, cm^-1; imaginary modes negative
+  raises: ValueError if coords is not (N,3), N < 2, masses is not (N,), hessian is not (3N,3N), any mass
+    <= 0, or any input is non-finite
+  depends_on: []
+- step_number: 2
+  index: 2
+  solution: solution/step_2.py
+  tests: tests/step_2.py
+  name: Bigeleisen-Mayer reduced partition function ratio
+  function: log_reduced_partition_function_ratio
+  signature: def log_reduced_partition_function_ratio(nu_light, nu_heavy, T)
+  function_header: |
+    def log_reduced_partition_function_ratio(nu_light, nu_heavy, T):
+        """Natural logarithm of the Bigeleisen-Mayer reduced partition function ratio f.
+
+        Parameters
+        ----------
+        nu_light, nu_heavy : array_like, shape (M,)
+            Real harmonic wavenumbers (cm^-1, > 0) of the light and heavy isotopologue.
+            Same length M >= 1; the pairing order of modes is irrelevant.
+        T : float or array_like
+            Temperature(s) in K, > 0. Must be accurate for 1 K <= T <= 1e6 K.
+
+        Returns
+        -------
+        float (for scalar T) or numpy.ndarray with the shape of T
+            ln f, with f defined heavy-over-light (positive when heavy wavenumbers are lower).
+
+        Raises
+        ------
+        ValueError
+            On empty or mismatched arrays, non-positive/non-finite wavenumbers or temperatures.
+        """
+  return_line: '    return out.reshape(t.shape)'
+  description: |
+    With u_i = h c nu_i / (k_B T) (nu in cm^-1, c in cm/s) for the light isotopologue
+    and u*_i for the heavy one, return
+      ln f = sum_i [ ln(u*_i / u_i) - (u*_i - u_i)/2 - ln(1 - exp(-u*_i)) + ln(1 - exp(-u_i)) ].
+    The result is invariant to the order of the modes in each array. It must be finite
+    and accurate over 1 K <= T <= 1e6 K: at low temperature exp(-u/2) underflows in
+    double precision, so the expression must be evaluated in logarithmic form; at high
+    temperature it approaches sum_i (u_i^2 - u*_i^2)/24.
+  step_description_prompt: |
+    With u_i = h c nu_i / (k_B T) (nu in cm^-1, c in cm/s) for the light isotopologue
+    and u*_i for the heavy one, return
+      ln f = sum_i [ ln(u*_i / u_i) - (u*_i - u_i)/2 - ln(1 - exp(-u*_i)) + ln(1 - exp(-u_i)) ].
+    The result is invariant to the order of the modes in each array. It must be finite
+    and accurate over 1 K <= T <= 1e6 K: at low temperature exp(-u/2) underflows in
+    double precision, so the expression must be evaluated in logarithmic form; at high
+    temperature it approaches sum_i (u_i^2 - u*_i^2)/24.
+  inputs:
+    nu_light: (M,) float, cm^-1, > 0, M >= 1
+    nu_heavy: (M,) float, cm^-1, > 0
+    T: scalar or array of any shape, K, > 0
+  output: ln f; a scalar (Python float or 0-d) for scalar T, otherwise an array with the shape of T
+  raises: ValueError if the arrays are empty, not 1-D, of different length, contain a value <= 0 or a
+    non-finite value, or if any T <= 0 or is non-finite
+  depends_on: []
+- step_number: 3
+  index: 3
+  solution: solution/step_3.py
+  tests: tests/step_3.py
+  name: Per-atom beta-factor of an isotopologue pair
+  function: log_beta
+  signature: def log_beta(coords, masses_light, masses_heavy, hessian, T)
+  function_header: |
+    def log_beta(coords, masses_light, masses_heavy, hessian, T):
+        """Per-atom ln(beta) of an isotopologue pair sharing one Born-Oppenheimer Hessian.
+
+        Parameters
+        ----------
+        coords : array_like, shape (N, 3), Angstrom
+        masses_light, masses_heavy : array_like, shape (N,), amu
+            Masses of the reference (light) and substituted (heavy) isotopologue. The atoms
+            whose masses differ are the substituted sites; they must all carry the same
+            light -> heavy isotope pair.
+        hessian : array_like, shape (3N, 3N), Hartree / bohr^2
+        T : float or array_like, K
+
+        Returns
+        -------
+        float or numpy.ndarray with the shape of T
+            ln(beta) = ln(f) / n, n = number of substituted sites; no symmetry numbers.
+
+        Raises
+        ------
+        ValueError
+            If no site is substituted, sites carry different isotope pairs, or shapes differ.
+        """
+  return_line: '    return ln_f / sites.size'
+  description: |
+    The substituted sites are the atoms whose masses differ between masses_light and
+    masses_heavy (relative difference > 1e-12). All substituted sites must carry the
+    same light mass and the same heavy mass (relative tolerance 1e-9), i.e. one
+    element and one isotope pair. Compute the vibrational wavenumbers of BOTH
+    isotopologues from the same Hessian with their own masses (Step 1), ln f from
+    Step 2, and return ln(beta) = ln(f) / n where n is the number of substituted sites
+    (per-atom convention; e.g. for C18O2 versus C16O2, n = 2). No symmetry numbers.
+  step_description_prompt: |
+    The substituted sites are the atoms whose masses differ between masses_light and
+    masses_heavy (relative difference > 1e-12). All substituted sites must carry the
+    same light mass and the same heavy mass (relative tolerance 1e-9), i.e. one
+    element and one isotope pair. Compute the vibrational wavenumbers of BOTH
+    isotopologues from the same Hessian with their own masses (Step 1), ln f from
+    Step 2, and return ln(beta) = ln(f) / n where n is the number of substituted sites
+    (per-atom convention; e.g. for C18O2 versus C16O2, n = 2). No symmetry numbers.
+  inputs:
+    coords: (N,3) Angstrom
+    masses_light: (N,) amu
+    masses_heavy: (N,) amu
+    hessian: (3N,3N) Hartree/bohr^2
+    T: scalar or array, K
+  output: ln(beta); scalar for scalar T, otherwise an array with the shape of T
+  raises: ValueError if no site is substituted, if substituted sites carry different light or heavy masses,
+    or if the mass vectors are not 1-D of equal length matching coords
+  depends_on:
+  - 1
+  - 2
+- step_number: 4
+  index: 4
+  solution: solution/step_4.py
+  tests: tests/step_4.py
+  name: High-temperature coefficient of ln(beta)
+  function: high_temperature_coefficient
+  signature: def high_temperature_coefficient(coords, masses_light, masses_heavy, hessian) -> float
+  function_header: |
+    def high_temperature_coefficient(coords, masses_light, masses_heavy, hessian):
+        """Leading high-temperature coefficient K of the per-atom ln(beta).
+
+        K is defined by ln(beta) = K / T^2 + O(T^-4) as T -> infinity, for the same
+        isotopologue pair and conventions as Step 3. The Hessian is translationally
+        and rotationally invariant and has no imaginary modes.
+
+        Returns
+        -------
+        float
+            K in K^2.
+
+        Raises
+        ------
+        ValueError
+            If no site is substituted or sites carry different isotope pairs.
+        """
+  return_line: '    return C2_CM_K ** 2 * np.sum(nu_l ** 2 - nu_h ** 2) / (24.0 * sites.size)'
+  description: |
+    Return K (in K^2) defined by ln(beta) = K / T^2 + O(T^-4) for T -> infinity, for the
+    same isotopologue pair and per-atom convention as Step 3. For this step the Hessian
+    is exactly translationally and rotationally invariant and has no imaginary modes.
+    K can be obtained from the leading term of the Step-2 expansion or, equivalently,
+    from the Bigeleisen-Mayer force-constant form; either route is acceptable.
+  step_description_prompt: |
+    Return K (in K^2) defined by ln(beta) = K / T^2 + O(T^-4) for T -> infinity, for the
+    same isotopologue pair and per-atom convention as Step 3. For this step the Hessian
+    is exactly translationally and rotationally invariant and has no imaginary modes.
+    K can be obtained from the leading term of the Step-2 expansion or, equivalently,
+    from the Bigeleisen-Mayer force-constant form; either route is acceptable.
+  inputs:
+    coords: (N,3) Angstrom
+    masses_light: (N,) amu
+    masses_heavy: (N,) amu
+    hessian: (3N,3N) Hartree/bohr^2, translation/rotation invariant
+  output: float, K^2
+  raises: ValueError under the same substitution rules as Step 3
+  depends_on:
+  - 1
+  - 3
+- step_number: 5
+  index: 5
+  solution: solution/step_5.py
+  tests: tests/step_5.py
+  name: Fractionation between two species, 1/T fit and high-temperature limit
+  function: isotope_fractionation
+  signature: def isotope_fractionation(species_a, species_b, temperatures) -> dict
+  function_header: |
+    def isotope_fractionation(species_a, species_b, temperatures):
+        """Equilibrium isotope fractionation 1000 ln(alpha_{a-b}) and its 1/T fit.
+
+        Parameters
+        ----------
+        species_a, species_b : dict
+            Keys 'coords' (N,3) Angstrom, 'masses_light' (N,) amu, 'masses_heavy' (N,) amu,
+            'hessian' (3N,3N) Hartree/bohr^2. Both species must substitute the same
+            isotope pair (same light and heavy mass at their substituted sites).
+        temperatures : array_like, shape (K,)
+            Temperatures in K (> 0) containing at least three distinct values.
+
+        Returns
+        -------
+        dict with
+            'thousand_ln_beta_a' : ndarray (K,)   1000 ln(beta_a)
+            'thousand_ln_beta_b' : ndarray (K,)   1000 ln(beta_b)
+            'thousand_ln_alpha'  : ndarray (K,)   1000 (ln beta_a - ln beta_b)
+            'fit'                : ndarray (3,)   [A, B, C] of the unweighted least-squares fit
+                                                  1000 ln alpha = A x^2 + B x + C, x = 1000/T
+            'a_high_T'           : float          1000 (K_a - K_b) / 1e6  (same units as A)
+
+        Raises
+        ------
+        ValueError
+            On mismatched isotope systems, missing keys, or invalid temperatures.
+        """
+  return_line: '    return result'
+  description: |
+    Each species is a dict with keys 'coords', 'masses_light', 'masses_heavy' and
+    'hessian' (units as above). Both species must substitute the same isotope pair: the
+    light masses of their substituted sites must agree and the heavy masses must agree
+    (relative tolerance 1e-9); otherwise raise ValueError (e.g. 18O/16O in one species
+    and D/H in the other). Return a dict:
+      thousand_ln_beta_a = 1000 ln(beta_a), thousand_ln_beta_b = 1000 ln(beta_b),
+      thousand_ln_alpha  = 1000 (ln beta_a - ln beta_b)      (arrays, shape (K,));
+      fit = [A, B, C], the ordinary (unweighted) least-squares solution of
+            1000 ln alpha = A x^2 + B x + C with x = 1000 / T over the given temperatures;
+      a_high_T = 1000 (K_a - K_b) / 1e6, the analytic T -> infinity limit expressed in
+            the units of A (i.e. the limit of 1000 ln alpha / x^2).
+  step_description_prompt: |
+    Each species is a dict with keys 'coords', 'masses_light', 'masses_heavy' and
+    'hessian' (units as above). Both species must substitute the same isotope pair: the
+    light masses of their substituted sites must agree and the heavy masses must agree
+    (relative tolerance 1e-9); otherwise raise ValueError (e.g. 18O/16O in one species
+    and D/H in the other). Return a dict:
+      thousand_ln_beta_a = 1000 ln(beta_a), thousand_ln_beta_b = 1000 ln(beta_b),
+      thousand_ln_alpha  = 1000 (ln beta_a - ln beta_b)      (arrays, shape (K,));
+      fit = [A, B, C], the ordinary (unweighted) least-squares solution of
+            1000 ln alpha = A x^2 + B x + C with x = 1000 / T over the given temperatures;
+      a_high_T = 1000 (K_a - K_b) / 1e6, the analytic T -> infinity limit expressed in
+            the units of A (i.e. the limit of 1000 ln alpha / x^2).
+  inputs:
+    species_a: dict (see description)
+    species_b: dict (see description)
+    temperatures: (K,) float, K > 0, at least three distinct values
+  output: dict with keys thousand_ln_beta_a, thousand_ln_beta_b, thousand_ln_alpha, fit, a_high_T
+  raises: ValueError if the isotope pairs differ, a key is missing, temperatures are not 1-D, contain
+    a value <= 0, or have fewer than three distinct values
+  depends_on:
+  - 3
+  - 4
 reference_solutions:
-  per_step: "solution/step_1.py ... solution/step_5.py (each self-contained, earlier steps included)"
-  complete: "solution.py"
-  alternative: "second_solution.py (Gram-Schmidt principal-axis projection, complete partition-function route via the Teller-Redlich rule, force-constant high-T limit, polyfit)"
+  per_step: solution/step_1.py ... solution/step_5.py (each self-contained, earlier steps included)
+  complete: solution.py
+  alternative: second_solution.py (Gram-Schmidt principal-axis projection, complete partition-function
+    route via the Teller-Redlich rule, force-constant high-T limit, polyfit)
 tests:
-  per_step: "tests/step_1.py ... tests/step_5.py"
-  integration: "tests/general.py"
-  runner: "pytest <file> or python <file>; the implementation is taken from globals, from $CROWN_IMPL, or from solution/step_N.py (solution.py for general.py)"
+  per_step: tests/step_1.py ... tests/step_5.py
+  integration: tests/general.py
+  runner: pytest <file> or python <file>; the implementation is taken from globals, from $CROWN_IMPL,
+    or from solution/step_N.py (solution.py for general.py)
